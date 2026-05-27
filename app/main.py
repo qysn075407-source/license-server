@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text as sql_text
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
@@ -7,15 +9,28 @@ from .models import LicenseKey, DeviceActivation, AccessToken, UsedNonce, AuditL
 from .schemas import CreateKeysRequest, CreateKeysResponse, ActivateRequest, SignedTokenResponse, HeartbeatRequest, SignedHeartbeatResponse, BanRequest, UnbindDeviceRequest
 from .security import hmac_hash, make_key, make_token, sign_response, load_public_key_pem
 from .config import settings
-from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Kami License System Pro", version="2.0.0")
+def ensure_schema_upgrades():
+    inspector = inspect(engine)
+    try:
+        tables = inspector.get_table_names()
+        columns = {col["name"] for col in inspector.get_columns("license_keys")} if "license_keys" in tables else set()
+    except Exception:
+        tables, columns = [], set()
+    if "license_keys" in tables and "duration_seconds" not in columns:
+        with engine.begin() as conn:
+            conn.execute(sql_text("ALTER TABLE license_keys ADD COLUMN duration_seconds INTEGER DEFAULT 86400"))
+            conn.execute(sql_text("UPDATE license_keys SET duration_seconds = COALESCE(duration_days, 1) * 86400"))
 
+ensure_schema_upgrades()
+
+app = FastAPI(title="Kami License System Pro", version="2.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -35,6 +50,14 @@ def admin_required(x_admin_token: str | None = Header(default=None)):
 
 def signed(data: dict) -> dict:
     return sign_response(data)
+
+def format_duration(seconds: int) -> str:
+    hours = max(1, round(int(seconds or 0) / 3600))
+    if hours % 24 == 0:
+        return f"{hours // 24}天"
+    if hours < 24:
+        return f"{hours}小时"
+    return f"{hours // 24}天{hours % 24}小时"
 
 def mark_expired_if_needed(lic: LicenseKey, db: Session) -> bool:
     if lic.expires_at and datetime.utcnow() >= lic.expires_at and lic.status != "expired":
@@ -75,6 +98,7 @@ def create_keys(req: CreateKeysRequest, db: Session = Depends(get_db)):
             key_hash=hmac_hash(key),
             plan=req.plan,
             duration_days=req.duration_days,
+            duration_seconds=req.duration_seconds,
             max_devices=req.max_devices,
             status="unused",
             note=req.note,
@@ -94,6 +118,9 @@ def list_licenses(db: Session = Depends(get_db)):
             "plan": r.plan,
             "status": r.status,
             "duration_days": r.duration_days,
+            "duration_hours": round((r.duration_seconds or (r.duration_days or 1) * 86400) / 3600),
+            "duration_seconds": r.duration_seconds or (r.duration_days or 1) * 86400,
+            "duration_label": format_duration(r.duration_seconds or (r.duration_days or 1) * 86400),
             "max_devices": r.max_devices,
             "expires_at": r.expires_at,
             "activated_at": r.activated_at,
@@ -150,7 +177,7 @@ def activate(req: ActivateRequest, request: Request, db: Session = Depends(get_d
     if lic.status == "unused":
         lic.status = "active"
         lic.activated_at = now
-        lic.expires_at = now + timedelta(days=lic.duration_days)
+        lic.expires_at = now + timedelta(seconds=lic.duration_seconds or lic.duration_days * 86400)
         audit(db, "license_first_activated", lic.id, req.device_id, ip)
 
     existing = db.execute(select(DeviceActivation).where(DeviceActivation.license_id == lic.id, DeviceActivation.device_id == req.device_id)).scalar_one_or_none()
