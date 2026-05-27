@@ -1,12 +1,29 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 class CreateKeysRequest(BaseModel):
     count: int = Field(ge=1, le=1000)
-    duration_days: int = Field(default=30, ge=1, le=3650)
+    duration_hours: int | None = Field(default=None, ge=1, le=168)
+    duration_seconds: int | None = Field(default=None, ge=3600, le=604800)
+    duration_days: int | None = Field(default=None, ge=1, le=7)
     max_devices: int = Field(default=1, ge=1, le=20)
-    plan: str = "standard"
+    plan: str = Field(default="standard", max_length=64)
     note: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_duration(self):
+        if self.duration_seconds is None:
+            if self.duration_hours is not None:
+                self.duration_seconds = self.duration_hours * 3600
+            elif self.duration_days is not None:
+                self.duration_seconds = self.duration_days * 86400
+            else:
+                self.duration_seconds = 24 * 3600
+        if self.duration_seconds < 3600 or self.duration_seconds > 604800:
+            raise ValueError("duration must be between 1 hour and 7 days")
+        self.duration_hours = max(1, round(self.duration_seconds / 3600))
+        self.duration_days = max(1, round(self.duration_seconds / 86400))
+        return self
 
 class CreateKeysResponse(BaseModel):
     keys: list[str]
