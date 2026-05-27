@@ -7,14 +7,7 @@ from .models import LicenseKey, DeviceActivation, AccessToken, UsedNonce, AuditL
 from .schemas import CreateKeysRequest, CreateKeysResponse, ActivateRequest, SignedTokenResponse, HeartbeatRequest, SignedHeartbeatResponse, BanRequest, UnbindDeviceRequest
 from .security import hmac_hash, make_key, make_token, sign_response, load_public_key_pem
 from .config import settings
-from fastapi.middleware.cors import CORSMiddleware
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Kami License System Pro", version="2.0.0")
 
