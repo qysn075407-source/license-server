@@ -8,7 +8,8 @@ class LicenseKey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     key_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
     plan: Mapped[str] = mapped_column(String(64), default="standard")
-    duration_days: Mapped[int] = mapped_column(Integer, default=30)
+    duration_days: Mapped[int] = mapped_column(Integer, default=1)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=86400)
     max_devices: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(32), default="unused") # unused, active, banned, expired
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
