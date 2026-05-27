@@ -9,14 +9,16 @@ from .security import hmac_hash, make_key, make_token, sign_response, load_publi
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Kami License System Pro", version="2.0.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-Base.metadata.create_all(bind=engine)
-app = FastAPI(title="Kami License System Pro", version="2.0.0")
 
 def client_ip(req: Request) -> str:
     xff = req.headers.get("x-forwarded-for")
