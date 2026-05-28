@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AimAssist 卡密管理后台 Pro</title>
+  <style>
+    :root {
+      --bg: #070914;
+      --card: rgba(17,24,39,.84);
+      --line: rgba(148,163,184,.18);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --primary: #8b5cf6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      padding: 26px;
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(139,92,246,.26), transparent 30%),
+        radial-gradient(circle at 88% 18%, rgba(6,182,212,.18), transparent 32%),
+        var(--bg);
+    }
+    button, input, select { font: inherit; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(2,6,23,.72);
+      color: var(--text);
+      padding: 12px 13px;
+      outline: none;
+    }
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 16px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), #6d5dfc);
+      cursor: pointer;
+    }
+    button.secondary { background: rgba(148,163,184,.13); border: 1px solid var(--line); }
+    button.green { background: linear-gradient(135deg, #16a34a, var(--green)); }
+    button.red { background: linear-gradient(135deg, #dc2626, var(--red)); }
+    button.small { padding: 7px 10px; border-radius: 10px; font-size: 12px; }
+    .wrap { max-width: 1280px; margin: auto; }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+    .top h1 { font-size: clamp(24px, 3vw, 34px); }
+    .top p, .muted { color: var(--muted); font-size: 13px; }
+    .pill { display: flex; gap: 8px; align-items: center; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(15,23,42,.74); color: var(--muted); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+    .ok { background: var(--green); }
+    .bad { background: var(--red); }
+    .grid { display: grid; grid-template-columns: .92fr 1.3fr; gap: 18px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.34); }
+    .card + .card { margin-top: 18px; }
+    .head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 16px; }
+    .form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .full { grid-column: 1 / -1; }
+    label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 13px; }
+    .quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px; }
+    .q { border: 1px solid var(--line); border-radius: 14px; padding: 10px; text-align: center; color: var(--muted); background: rgba(148,163,184,.1); cursor: pointer; }
+    .q.active { background: rgba(139,92,246,.22); border-color: rgba(139,92,246,.75); color: #fff; }
+    .preview { margin-top: 12px; padding: 14px; border-radius: 16px; border: 1px solid rgba(139,92,246,.25); background: rgba(139,92,246,.13); font-size: 13px; line-height: 1.6; }
+    .result { display: none; margin-top: 14px; border: 1px solid var(--line); border-radius: 16px; background: rgba(2,6,23,.64); overflow: hidden; }
+    .result-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .result pre { padding: 14px; white-space: pre-wrap; max-height: 260px; overflow: auto; line-height: 1.6; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+    .toolbar { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .search { max-width: 280px; }
+    .table { overflow: auto; border: 1px solid var(--line); border-radius: 18px; }
+    table { width: 100%; min-width: 850px; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; color: #c4b5fd; background: rgba(15,23,42,.9); padding: 13px 14px; }
+    td { padding: 13px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+    .badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .active { background: rgba(34,197,94,.14); color: #86efac; }
+    .expired { background: rgba(239,68,68,.13); color: #fca5a5; }
+    .banned { background: rgba(127,29,29,.38); color: #fecaca; }
+    .unused { background: rgba(59,130,246,.14); color: #93c5fd; }
+    .empty { text-align: center; color: var(--muted); padding: 30px; }
+    @media (max-width: 940px) {
+      body { padding: 16px; }
+      .top, .grid { display: grid; grid-template-columns: 1fr; }
+      .form { grid-template-columns: 1fr; }
+      .quick { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>🎯 AimAssist 卡密管理后台 Pro</h1>
+      <p>支持 1 小时到 7 天任意时长。时间会按你电脑本地时间显示，并修复 UTC 偏差。</p>
+    </div>
+    <div class="pill"><span id="dot" class="dot"></span><span id="status">等待连接</span></div>
+  </header>
+
+  <main class="grid">
+    <section>
+      <div class="card">
+        <div class="head"><h2>⚙️ 服务器配置</h2><span class="muted" id="clock">本地时间 --</span></div>
+        <div class="form">
+          <div class="full"><label>服务器地址</label><input id="server" value="https://license-server-production-9f28.up.railway.app" /></div>
+          <div class="full"><label>管理员密码 / Token</label><input id="token" type="password" /></div>
+        </div>
+        <div class="actions"><button onclick="testConn()">测试连接</button><button class="secondary" onclick="saveCfg()">保存配置</button></div>
+      </div>
+
+      <div class="card">
+        <div class="head"><h2>🔑 生成卡密</h2><span class="muted">1 小时 - 7 天</span></div>
+        <label>快捷时长</label>
+        <div class="quick">
+          <div class="q" data-h="1">1 小时</div><div class="q" data-h="2">2 小时</div><div class="q" data-h="6">6 小时</div><div class="q" data-h="12">12 小时</div>
+          <div class="q active" data-h="24">1 天</div><div class="q" data-h="48">2 天</div><div class="q" data-h="72">3 天</div><div class="q" data-h="168">7 天</div>
+        </div>
+        <div class="form">
+          <div><label>生成数量</label><input id="count" type="number" min="1" max="1000" value="1" /></div>
+          <div><label>设备数</label><input id="maxdev" type="number" min="1" max="20" value="1" /></div>
+          <div><label>自定义时长</label><input id="durationValue" type="number" min="1" value="1" oninput="syncCustom()" /></div>
+          <div><label>单位</label><select id="durationUnit" onchange="syncCustom()"><option value="hours">小时</option><option value="days" selected>天</option></select></div>
+          <div class="full"><label>套餐名称</label><input id="plan" value="1天卡" /></div>
+        </div>
+        <div id="preview" class="preview"></div>
+        <div class="actions"><button class="green" onclick="genKeys()">生成卡密</button><button class="secondary" onclick="resetGen()">重置</button></div>
+        <div id="result" class="result"><div class="result-head"><span id="resultTitle">生成结果</span><button class="secondary small" onclick="copyResult()">复制</button></div><pre id="resultText"></pre></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>📋 卡密列表</h2><span id="total" class="muted">未加载</span></div>
+      <div class="toolbar">
+        <div class="actions" style="margin:0"><button onclick="loadKeys()">刷新</button><button class="secondary" onclick="setFilter('')">全部</button><button class="secondary" onclick="setFilter('unused')">未使用</button><button class="secondary" onclick="setFilter('active')">使用中</button></div>
+        <input id="search" class="search" placeholder="搜索..." oninput="render()" />
+      </div>
+      <div class="table"><table><thead><tr><th>ID</th><th>套餐 / 时长</th><th>状态</th><th>到期时间</th><th>设备</th><th>操作</th></tr></thead><tbody id="tbody"><tr><td colspan="6" class="empty">点击刷新加载数据</td></tr></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id)
+let hours = 24
+let keys = []
+let filter = ''
+
+const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))
+const srv = () => $('server').value.trim().replace(/\/$/, '')
+const tok = () => $('token').value.trim()
+const hdr = () => ({ 'Content-Type': 'application/json', 'x-admin-token': tok() })
+
+// 关键修复：后端 datetime.utcnow() 通常返回不带 Z 的 ISO 字符串。
+// 浏览器默认会把不带 Z 的字符串当成本地时间，导致显示偏差。
+// 这里统一把不带时区的服务器时间按 UTC 解析，再显示为本地时间。
+function parseServerTime(value) {
+  if (!value) return null
+  let s = String(value)
+  if (!/[zZ]|[+-]\d\d:\d\d$/.test(s)) s += 'Z'
+  return new Date(s)
+}
+
+function fmt(value) {
+  if (!value) return '未激活'
+  const d = parseServerTime(value)
+  if (!d || Number.isNaN(d.getTime())) return String(value)
+  return d.toLocaleString('zh-CN', { hour12: false })
+}
+
+function tick() { $('clock').textContent = '本地时间 ' + new Date().toLocaleString('zh-CN', { hour12: false }) }
+setInterval(tick, 1000); tick()
+
+function setStatus(text, type = '') {
+  $('status').textContent = text
+  $('dot').className = 'dot ' + (type === 'ok' ? 'ok' : type === 'bad' ? 'bad' : '')
+}
+
+function saveCfg() {
+  localStorage.setItem('kami_server', $('server').value.trim())
+  localStorage.setItem('kami_token', tok())
+  setStatus('配置已保存', 'ok')
+}
+
+function loadCfg() {
+  const s = localStorage.getItem('kami_server')
+  const t = localStorage.getItem('kami_token')
+  if (s) $('server').value = s
+  if (t) $('token').value = t
+}
+
+async function api(method, path, body) {
+  const response = await fetch(srv() + path, { method, headers: hdr(), body: body ? JSON.stringify(body) : undefined })
+  const text = await response.text()
+  let data
+  try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
+  if (!response.ok) throw new Error(data.detail || data.message || JSON.stringify(data))
+  return data
+}
+
+async function testConn() {
+  try {
+    const r = await fetch(srv() + '/health')
+    const j = await r.json()
+    setStatus(j.ok ? `连接正常，服务器时间 ${fmt(j.server_time)}` : '连接失败', j.ok ? 'ok' : 'bad')
+  } catch (e) { setStatus('无法连接服务器', 'bad') }
+}
+
+function clamp(h) {
+  h = Number(h)
+  return Math.max(1, Math.min(168, Number.isFinite(h) ? Math.round(h) : 24))
+}
+
+function label(h) {
+  if (h % 24 === 0) return `${h / 24}天`
+  if (h < 24) return `${h}小时`
+  return `${Math.floor(h / 24)}天${h % 24}小时`
+}
+
+function setDuration(h, quick = false) {
+  hours = clamp(h)
+  document.querySelectorAll('.q').forEach(x => x.classList.toggle('active', Number(x.dataset.h) === hours))
+  if (quick) {
+    if (hours % 24 === 0) { $('durationUnit').value = 'days'; $('durationValue').value = hours / 24 }
+    else { $('durationUnit').value = 'hours'; $('durationValue').value = hours }
+  }
+  $('plan').value = `${label(hours)}卡`
+  $('preview').innerHTML = `当前将生成：<b>${label(hours)}卡</b>，有效期 ${hours} 小时。<br>按你电脑时间预计到期：${new Date(Date.now() + hours * 3600000).toLocaleString('zh-CN', { hour12: false })}`
+}
+
+function syncCustom() {
+  const v = Number($('durationValue').value || 1)
+  setDuration($('durationUnit').value === 'days' ? v * 24 : v, false)
+}
+
+function resetGen() { $('count').value = 1; $('maxdev').value = 1; setDuration(24, true); $('result').style.display = 'none' }
+document.querySelectorAll('.q').forEach(el => el.onclick = () => setDuration(Number(el.dataset.h), true))
+
+async function genKeys() {
+  const payload = {
+    count: Math.max(1, parseInt($('count').value || '1', 10)),
+    plan: $('plan').value.trim() || `${label(hours)}卡`,
+    duration_hours: hours,
+    duration_seconds: hours * 3600,
+    duration_days: Math.ceil(hours / 24),
+    max_devices: Math.max(1, parseInt($('maxdev').value || '1', 10))
+  }
+  $('result').style.display = 'block'
+  $('resultTitle').textContent = '正在生成...'
+  $('resultText').textContent = JSON.stringify(payload, null, 2)
+  try {
+    const d = await api('POST', '/admin/keys', payload)
+    $('resultTitle').textContent = `生成成功：${label(hours)}`
+    $('resultText').textContent = d.keys ? d.keys.join('\n') : JSON.stringify(d, null, 2)
+    await loadKeys(false)
+  } catch (e) { $('resultTitle').textContent = '生成失败'; $('resultText').textContent = e.message }
+}
+
+function copyResult() { navigator.clipboard.writeText($('resultText').textContent || ''); setStatus('已复制', 'ok') }
+
+async function loadKeys(showError = true) {
+  try {
+    keys = await api('GET', '/admin/licenses')
+    if (!Array.isArray(keys)) keys = []
+    render()
+    setStatus('列表已刷新', 'ok')
+  } catch (e) { setStatus('列表加载失败', 'bad'); if (showError) alert(e.message) }
+}
+
+function setFilter(s) { filter = s; render() }
+
+async function banKey(id) {
+  if (!confirm(`确定封禁 ID=${id}？`)) return
+  try { await api('POST', '/admin/ban', { license_id: id, reason: '管理员手动封禁' }); await loadKeys(false) }
+  catch (e) { alert(e.message) }
+}
+
+async function unbind(id, did) {
+  if (!confirm('确定解绑此设备？')) return
+  try { await api('POST', '/admin/unbind-device', { license_id: id, device_id: did }); await loadKeys(false) }
+  catch (e) { alert(e.message) }
+}
+
+function render() {
+  const q = $('search').value.trim().toLowerCase()
+  const rows = keys.filter(k => (!filter || k.status === filter) && (!q || JSON.stringify(k).toLowerCase().includes(q)))
+  $('total').textContent = `${rows.length}/${keys.length} 条`
+  const statusMap = { active: '使用中', expired: '已过期', banned: '已封禁', unused: '未使用' }
+  if (!rows.length) { $('tbody').innerHTML = '<tr><td colspan="6" class="empty">没有匹配数据</td></tr>'; return }
+  $('tbody').innerHTML = rows.map(k => {
+    const devs = Array.isArray(k.devices) ? k.devices : []
+    const durationText = k.duration_label || (k.duration_hours ? `${k.duration_hours}小时` : '-')
+    const actions = [
+      k.status !== 'banned' ? `<button class="red small" onclick="banKey(${Number(k.id)})">封禁</button>` : '<span class="muted">已封禁</span>',
+      ...devs.map(d => `<button class="secondary small" onclick="unbind(${Number(k.id)}, '${esc(d.device_id)}')">解绑</button>`)
+    ].join(' ')
+    return `<tr>
+      <td>#${esc(k.id)}</td>
+      <td>${esc(k.plan || '-')}<br><span class="muted">${esc(durationText)}</span></td>
+      <td><span class="badge ${esc(k.status)}">${esc(statusMap[k.status] || k.status || '-')}</span></td>
+      <td>${esc(fmt(k.expires_at))}</td>
+      <td>${devs.length}/${esc(k.max_devices ?? '-')}</td>
+      <td>${actions}</td>
+    </tr>`
+  }).join('')
+}
+
+loadCfg()
+setDuration(24, true)
+testConn()
+</script>
+</body>
+</html>
